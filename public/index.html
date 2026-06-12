@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FTDC Replay — MongoDB System Visualizer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  background: #0d1117;
+  color: #e6edf3;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Drop zone ─────────────────────────────────────────── */
+#dropzone {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d1117;
+  z-index: 100;
+}
+#dropzone.drag-over { background: #161b22; }
+#dropzone.hidden { display: none; }
+
+.drop-inner {
+  text-align: center;
+  padding: 48px 40px;
+  border: 2px dashed #30363d;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.drop-inner:hover, #dropzone.drag-over .drop-inner { border-color: #58a6ff; }
+
+.drop-icon { font-size: 52px; margin-bottom: 16px; }
+.drop-inner h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; color: #e6edf3; }
+.drop-inner p { color: #8b949e; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+.drop-inner code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #a5d6ff; }
+
+#file-input { display: none; }
+
+#progress-bar {
+  height: 4px;
+  background: #21262d;
+  border-radius: 2px;
+  margin-top: 20px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+#progress-bar.visible { opacity: 1; }
+#progress-fill { height: 100%; background: #58a6ff; width: 0%; transition: width 0.15s; }
+
+#upload-status { margin-top: 12px; font-size: 12px; color: #8b949e; min-height: 18px; }
+#upload-status.error { color: #f85149; }
+
+/* ── App layout ────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+#header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 44px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+}
+
+#app-title { font-size: 12px; font-weight: 700; color: #58a6ff; letter-spacing: 0.05em; margin-right: 4px; }
+
+#controls { display: flex; align-items: center; gap: 5px; }
+
+button {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+button:hover { background: #30363d; }
+button:active { background: #3d444e; }
+button.active { background: #1f6feb; border-color: #388bfd; }
+
+select {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#current-time { font-size: 12px; color: #8b949e; margin-left: auto; }
+#session-info { font-size: 12px; color: #8b949e; }
+
+#diagram-container { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+#diagram { width: 100%; height: 100%; }
+#particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+#timeline-container { height: 120px; flex-shrink: 0; background: #161b22; border-top: 1px solid #30363d; }
+#timeline { width: 100%; height: 100%; display: block; }
+
+/* ── SVG diagram ────────────────────────────────────────── */
+.node-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; }
+.node-value { font-size: 11px; }
+.node-value.warn { fill: #eab308; }
+.node-value.crit { fill: #ef4444; font-weight: 700; }
+
+.edge-flow { fill: none; stroke-dasharray: 6 4; animation: dash-flow 0.8s linear infinite; }
+.edge-back { fill: none; stroke-dasharray: 4 6; animation: dash-back 1s linear infinite; opacity: 0.6; }
+.edge-info { fill: none; stroke-dasharray: 3 5; opacity: 0.4; }
+
+@keyframes dash-flow { from { stroke-dashoffset: 10; } to { stroke-dashoffset: 0; } }
+@keyframes dash-back { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 10; } }
+
+@keyframes pulse-red {
+  0%, 100% { filter: drop-shadow(0 0 3px #ef4444); }
+  50%       { filter: drop-shadow(0 0 12px #ef4444) drop-shadow(0 0 24px #ef444466); }
+}
+@keyframes pulse-yellow {
+  0%, 100% { filter: none; }
+  50%       { filter: drop-shadow(0 0 6px #eab30866); }
+}
+.health-red    { animation: pulse-red 1.2s ease-in-out infinite; }
+.health-yellow { animation: pulse-yellow 2s ease-in-out infinite; }
+
+/* ── Timeline ───────────────────────────────────────────── */
+.tl-axis text { fill: #8b949e; font-size: 10px; font-family: ui-monospace, monospace; }
+.tl-axis .domain { display: none; }
+.tl-axis .tick line { stroke: #21262d; }
+.sparkline { fill: none; stroke-width: 1.5; }
+.playhead { stroke: #58a6ff; stroke-width: 2; }
+.anomaly-marker { cursor: pointer; }
+.anomaly-label { font-size: 9px; font-family: ui-monospace, monospace; fill: #8b949e; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div id="dropzone">
+  <div class="drop-inner" id="drop-target">
+    <div class="drop-icon">🍃</div>
+    <h2>FTDC Replay</h2>
+    <p>Drop a MongoDB FTDC metrics file to animate the system as a replay</p>
+    <p><code>diagnostic.data/metrics.YYYY-MM-DDTHH-MM-SSZ-NNNNN</code></p>
+    <input type="file" id="file-input">
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+    <div id="upload-status"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div id="header">
+    <span id="app-title">FTDC REPLAY</span>
+    <div id="controls">
+      <button id="btn-step-back">◀</button>
+      <button id="btn-play">▶ Play</button>
+      <button id="btn-step-fwd">▶</button>
+      <select id="speed-select">
+        <option value="1">1×</option>
+        <option value="5">5×</option>
+        <option value="10" selected>10×</option>
+        <option value="60">60×</option>
+      </select>
+    </div>
+    <span id="current-time">–</span>
+    <span id="session-info"></span>
+  </div>
+  <div id="diagram-container">
+    <svg id="diagram" viewBox="0 0 1200 620" preserveAspectRatio="xMidYMid meet"></svg>
+    <canvas id="particles"></canvas>
+  </div>
+  <div id="timeline-container">
+    <svg id="timeline"></svg>
+  </div>
+</div>
+
+<script src="/d3.min.js"></script>
+<script src="/ws-client.js"></script>
+<script src="/diagram.js"></script>
+<script src="/timeline.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
