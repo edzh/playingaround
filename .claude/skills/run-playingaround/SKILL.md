@@ -1,60 +1,55 @@
 ---
 name: run-playingaround
-description: Run, screenshot, and visually verify the playingaround Hello World web app. Use when asked to run the app, take a screenshot, verify correctness, or confirm a change looks right.
+description: Run, screenshot, and visually verify the playingaround web app on iPhone and desktop viewports. Use when asked to run the app, take a screenshot, verify correctness, or confirm a change looks right on mobile.
 ---
 
 # run-playingaround
 
-A static HTML app (`index.html`). Served by Python's built-in HTTP server and
-screenshotted with `npx playwright screenshot` (Chromium, headless). No build
-step. `server.js` exists but is incomplete — use the Python server.
+Express app serving static HTML. The owner works from the Claude iPhone app,
+so verification means running `scripts/verify.mjs` and **sending the
+screenshots to the user via SendUserFile** — that's the only way they see
+the app. Paths below are relative to the repo root.
 
-## Prerequisites
-
-```bash
-npx playwright install chromium   # one-time; already done in this container
-```
-
-Python 3 is always present. No other installs needed.
-
-## Screenshot (agent path)
-
-Run this from the repo root to start the server, capture a screenshot, and
-stop the server:
+## Setup (fresh container)
 
 ```bash
-# Start server
-python3 -m http.server 8765 --directory /home/user/playingaround &
-SERVER_PID=$!
-sleep 1
-
-# Screenshot
-npx playwright screenshot --browser chromium \
-  http://localhost:8765/ \
-  /tmp/playingaround-screenshot.png
-
-# Stop server
-kill $SERVER_PID 2>/dev/null
-echo "Screenshot saved to /tmp/playingaround-screenshot.png"
+npm install
 ```
 
-Then read the file at `/tmp/playingaround-screenshot.png` to verify it.
+Chromium for playwright 1.56.1 is pre-cached in `/opt/pw-browsers` — no
+`playwright install` needed. Do NOT upgrade playwright (see Gotchas).
 
-## Human path
+## Verify (agent path — use this)
 
 ```bash
-cd /home/user/playingaround
-python3 -m http.server 8765
-# Open http://localhost:8765 in a browser, Ctrl-C to stop
+npm run verify
 ```
+
+- Boots `server.js` on port 3000, screenshots `/` at iPhone 14 and
+  1280×800 desktop viewports, kills the server.
+- Output: `/tmp/verify/iphone.png` and `/tmp/verify/desktop.png`
+- Exits 1 if any console error, page error, failed request, or non-2xx
+  response occurred. Screenshots are still written on failure.
+- Other pages: `node scripts/verify.mjs /otherpage.html`
+
+After running, **send `/tmp/verify/iphone.png` to the user** (SendUserFile),
+plus `desktop.png` when layout is in question.
+
+## Run (human path)
+
+```bash
+npm start   # http://localhost:3000, Ctrl-C to stop
+```
+
+Useless headless — there is no browser to open. Use the verify path.
 
 ## Gotchas
 
-- **`server.js` does nothing.** It creates an Express app but has no routes
-  and never calls `app.listen()`. There is also no `package.json` or
-  `node_modules`. Use Python's HTTP server instead.
-- **Port collision.** If port 8765 is in use from a previous run:
-  `fuser -k 8765/tcp` before starting again. `pkill -f` can exit 144
-  in this environment; `fuser -k` is more reliable.
-- **Playwright Chromium not installed.** Run
-  `npx playwright install chromium` once per container.
+- **playwright must stay pinned at 1.56.1.** The sandbox network egress
+  blocks `cdn.playwright.dev`, so any newer playwright cannot download its
+  browser build (403 "Host not in allowlist"). 1.56.1 matches the
+  pre-cached `/opt/pw-browsers/chromium-1194`.
+- **Port 3000 stuck:** `fuser -k 3000/tcp`. `pkill -f` exits 144 in this
+  environment and kills your own shell pipeline.
+- verify.mjs uses `waitUntil: 'networkidle'` — fine for this static app;
+  if websockets are ever added, switch to waiting for a selector.
