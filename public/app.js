@@ -5,6 +5,7 @@
 let wsClient  = null;
 let diagram   = null;
 let timeline  = null;
+let particles = null;
 let playing   = false;
 
 // ── Upload ─────────────────────────────────────────────────────────────
@@ -70,11 +71,13 @@ function startSession(data) {
   document.getElementById('session-info').textContent =
     `${data.nFrames.toLocaleString()} frames  •  ${(data.anomalies || []).length} anomalies`;
 
-  diagram  = new Diagram();
-  timeline = new Timeline();
+  diagram   = new Diagram();
+  timeline  = new Timeline();
+  particles = new Particles();
 
   diagram.init(document.getElementById('diagram'));
   timeline.init(document.getElementById('timeline'), data.timeRange, data.anomalies || []);
+  particles.init(document.getElementById('particles'));
   timeline.onSeek(t => wsClient?.seek(t));
 
   wsClient = new WsClient(data.sessionId);
@@ -87,6 +90,7 @@ function startSession(data) {
   wsClient.onFrame = msg => {
     diagram.update(msg.m, msg.h);
     timeline.update(msg.t, msg.m);
+    particles.update(msg.m);
     document.getElementById('current-time').textContent =
       new Date(msg.t).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
   };
