@@ -17,7 +17,24 @@ const progressBar  = document.getElementById('progress-bar');
 const progressFill = document.getElementById('progress-fill');
 const statusEl     = document.getElementById('upload-status');
 
-dropTarget.addEventListener('click', () => fileInput.click());
+dropTarget.addEventListener('click', e => { if (e.target.id !== 'demo-btn') fileInput.click(); });
+
+document.getElementById('demo-btn').addEventListener('click', async e => {
+  e.stopPropagation();
+  statusEl.textContent = 'Loading demo…';
+  statusEl.className = '';
+  progressBar.classList.add('visible');
+  progressFill.style.width = '40%';
+  try {
+    const res = await fetch('/api/demo');
+    if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+    progressFill.style.width = '80%';
+    startSession(await res.json());
+  } catch (e) {
+    statusEl.textContent = 'Demo error: ' + e.message;
+    statusEl.className = 'error';
+  }
+});
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) upload(fileInput.files[0]); });
 
 dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });

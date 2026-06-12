@@ -2,6 +2,7 @@
 
 const { Router } = require('express');
 const { processFTDC } = require('../lib/pipeline');
+const { generateDemo } = require('../lib/demo-data');
 const sessionStore = require('../lib/session-store');
 
 const router = Router();
@@ -18,6 +19,16 @@ router.post('/api/upload', async (req, res) => {
     res.json({ sessionId, nFrames: frames.length, timeRange, anomalies });
   } catch (err) {
     console.error('Upload error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/api/demo', (req, res) => {
+  try {
+    const data = generateDemo();
+    const sessionId = sessionStore.create(data);
+    res.json({ sessionId, nFrames: data.nFrames, timeRange: data.timeRange, anomalies: data.anomalies });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

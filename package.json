@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node test/test-parser.js",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "demo": "node scripts/demo-screenshot.mjs"
   },
   "keywords": [],
   "author": "",
