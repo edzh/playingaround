@@ -6,6 +6,7 @@ var app = express();
 var sessionStore = require('./lib/session-store');
 
 app.use(express.raw({ type: 'application/octet-stream', limit: '500mb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use(require('./routes/api'));
 app.use('/d3.min.js', express.static(path.join(__dirname, 'node_modules/d3/dist/d3.min.js')));
 app.use(express.static(path.join(__dirname, 'public')));

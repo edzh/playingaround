@@ -4,11 +4,12 @@ class WsClient {
   constructor(sessionId) {
     this.sessionId = sessionId;
     this._ws = null;
-    this.onReady     = null;
-    this.onAnomalies = null;
-    this.onFrame     = null;
-    this.onDone      = null;
-    this.onError     = null;
+    this.onReady        = null;
+    this.onAnomalies    = null;
+    this.onFrame        = null;
+    this.onClusterFrame = null;
+    this.onDone         = null;
+    this.onError        = null;
   }
 
   connect() {
@@ -20,7 +21,8 @@ class WsClient {
       switch (msg.type) {
         case 'ready':     this.onReady?.(msg);        break;
         case 'anomalies': this.onAnomalies?.(msg.events); break;
-        case 'frame':     this.onFrame?.(msg);         break;
+        case 'frame':         this.onFrame?.(msg);        break;
+        case 'cluster-frame': this.onClusterFrame?.(msg); break;
         case 'done':      this.onDone?.();             break;
         case 'error':     this.onError?.(msg.message); break;
       }

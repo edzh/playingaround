@@ -1,6 +1,11 @@
 /**
- * Starts the server, loads the demo session, plays for a few seconds,
- * then captures iPhone + desktop screenshots at the "eviction storm" moment.
+ * Starts the server, loads a demo session, plays for a few seconds, then
+ * captures iPhone + desktop screenshots at an interesting moment.
+ *
+ * Scenes:
+ *   node scripts/demo-screenshot.mjs            → single-node eviction storm
+ *   node scripts/demo-screenshot.mjs cluster    → 5-host cluster mid-migration
+ *                                                 (+ drill-down on the hot shard)
  */
 import { chromium } from 'playwright';
 import { spawn } from 'child_process';
@@ -8,6 +13,7 @@ import { mkdir } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
+const SCENE  = process.argv[2] === 'cluster' ? 'cluster' : 'single';
 const ROOT   = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const OUTDIR = '/tmp/verify';
 
@@ -50,30 +56,36 @@ async function shot(name, viewport) {
   });
 
   await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
-
-  // Click "Try Demo"
-  await page.click('#demo-btn');
-
-  // Wait for app view to appear (dropzone hides, app shows)
+  await page.click(SCENE === 'cluster' ? '#cluster-demo-btn' : '#demo-btn');
   await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
-  // Auto-play at 60× to fast-forward into the eviction storm region
-  // (frame ~200 of 600 = phase ~0.33 where appEvict kicks in)
+  // Fast-forward at 60× into the interesting region:
+  //   single  → eviction storm starts at frame ~200
+  //   cluster → chunk migration window is frames 240–420; aim for ~300
   await page.evaluate(() => {
     document.getElementById('speed-select').value = '60';
     document.getElementById('btn-play').click();
   });
+  await page.waitForTimeout(SCENE === 'cluster' ? 5000 : 4000);
 
-  // Let it play for 4 seconds (= 240 simulated seconds at 60×, ~frame 240)
-  await page.waitForTimeout(4000);
-
-  // Pause so screenshot is stable
+  // Pause so the screenshot is stable
   await page.click('#btn-play');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
 
   const file = `${OUTDIR}/${name}.png`;
   await page.screenshot({ path: file, fullPage: false });
   console.log(`[${name}] ${file}`);
+
+  // Cluster bonus shot: drill into the hot shard's full pipe diagram
+  if (SCENE === 'cluster') {
+    await page.click('.host-card:nth-child(2)'); // shard0 (hot)
+    await page.waitForSelector('.drill-overlay', { state: 'visible' });
+    await page.waitForTimeout(300);
+    const drillFile = `${OUTDIR}/${name}-drill.png`;
+    await page.screenshot({ path: drillFile, fullPage: false });
+    console.log(`[${name}-drill] ${drillFile}`);
+  }
+
   await ctx.close();
 }
 
@@ -87,4 +99,4 @@ if (errors.length) {
   console.error('Console errors:', errors);
   process.exit(1);
 }
-console.log('\nDEMO SCREENSHOT OK');
+console.log(`\nDEMO SCREENSHOT OK (${SCENE})`);

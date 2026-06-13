@@ -116,6 +116,57 @@ select {
 #diagram { width: 100%; height: 100%; }
 #particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
+/* ── Cluster view ──────────────────────────────────────── */
+#cluster-view { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: none; }
+
+.balance-wrap { margin-bottom: 14px; }
+.balance-title { font-size: 10px; color: #8b949e; letter-spacing: 0.08em; margin-bottom: 6px; font-weight: 700; }
+.balance-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid #30363d; }
+.balance-seg { display: flex; align-items: center; justify-content: center; transition: width 0.5s ease; min-width: 3%; overflow: hidden; }
+.balance-seg span { font-size: 10px; font-weight: 700; color: #0d1117; white-space: nowrap; }
+
+.host-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+
+.host-card {
+  background: #161b22; border: 1.5px solid #22c55e; border-radius: 9px;
+  padding: 10px 12px; cursor: pointer; transition: border-color 0.3s;
+}
+.host-card:hover { background: #1c2129; }
+.card-red { animation: pulse-red 1.2s ease-in-out infinite; }
+
+.host-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.role-badge { font-size: 9px; font-weight: 700; color: #fff; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.06em; }
+.host-label { font-size: 12px; font-weight: 600; color: #e6edf3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.host-expand { color: #6b7280; font-size: 13px; }
+
+.gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; }
+.gauge-top { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.gauge-label { font-size: 9px; color: #8b949e; letter-spacing: 0.05em; text-transform: uppercase; }
+.gauge-val { font-size: 10px; color: #e6edf3; }
+.gauge-track { height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; }
+.gauge-fill { height: 100%; width: 0; background: #3b82f6; border-radius: 3px; transition: width 0.4s ease, background 0.4s; }
+
+.drill-overlay {
+  position: fixed; inset: 0; z-index: 50; background: #0d1117ee;
+  display: flex; flex-direction: column; padding: 8px;
+}
+.drill-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; flex-shrink: 0; }
+.drill-title { font-size: 13px; font-weight: 700; color: #58a6ff; }
+.drill-svg { flex: 1; min-height: 0; width: 100%; }
+
+/* ── Staging panel (multi-file upload) ─────────────────── */
+#staging { margin-top: 16px; text-align: left; }
+.stage-row {
+  display: flex; align-items: center; gap: 8px; padding: 7px 9px;
+  background: #161b22; border: 1px solid #30363d; border-radius: 6px; margin-bottom: 6px;
+}
+.stage-row input {
+  flex: 1; background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+  font-family: inherit; font-size: 11px; padding: 4px 7px; border-radius: 4px; min-width: 0;
+}
+.stage-status { font-size: 10px; color: #8b949e; white-space: nowrap; }
+#launch-cluster { width: 100%; margin-top: 8px; padding: 9px; background: #7c3aed; border-color: #8b5cf6; font-weight: 700; }
+
 #timeline-container { height: 120px; flex-shrink: 0; background: #161b22; border-top: 1px solid #30363d; }
 #timeline { width: 100%; height: 100%; display: block; }
 
@@ -161,9 +212,13 @@ select {
     <h2>FTDC Replay</h2>
     <p>Drop a MongoDB FTDC metrics file to animate the system as a replay</p>
     <p><code>diagnostic.data/metrics.YYYY-MM-DDTHH-MM-SSZ-NNNNN</code></p>
-    <input type="file" id="file-input">
-    <button id="demo-btn" style="margin-top:18px;padding:8px 24px;font-size:13px;background:#1f6feb;border-color:#388bfd;">▶ Try Demo</button>
-    <p style="margin-top:10px;font-size:11px;color:#6b7280">Simulated 10-min cache cascade incident</p>
+    <input type="file" id="file-input" multiple>
+    <div style="margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button id="demo-btn" style="padding:8px 20px;font-size:13px;background:#1f6feb;border-color:#388bfd;">▶ Single-Node Demo</button>
+      <button id="cluster-demo-btn" style="padding:8px 20px;font-size:13px;background:#7c3aed;border-color:#8b5cf6;">⚡ Sharded Cluster Demo</button>
+    </div>
+    <p style="margin-top:10px;font-size:11px;color:#6b7280">Drop multiple FTDC files (one per host) to replay a whole cluster</p>
+    <div id="staging" style="display:none"></div>
     <div id="progress-bar"><div id="progress-fill"></div></div>
     <div id="upload-status"></div>
   </div>
@@ -190,6 +245,7 @@ select {
     <svg id="diagram" viewBox="0 0 1200 620" preserveAspectRatio="xMidYMid meet"></svg>
     <canvas id="particles"></canvas>
   </div>
+  <div id="cluster-view"></div>
   <div id="timeline-container">
     <svg id="timeline"></svg>
   </div>
@@ -200,6 +256,7 @@ select {
 <script src="/diagram.js"></script>
 <script src="/timeline.js"></script>
 <script src="/particles.js"></script>
+<script src="/cluster-view.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
