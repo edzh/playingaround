@@ -2,7 +2,10 @@
 
 (function() {
 
-const SEV_COLOR = { WARNING: '#eab308', CRITICAL: '#ef4444' };
+const TP = window.LG.palette;
+const SEV_COLOR = { WARNING: TP.yellow.base, CRITICAL: TP.red.light1 };
+const OPS_COLOR = TP.blue.light1;    // ops/s sparkline
+const CACHE_COLOR = TP.green.base;   // cache% sparkline
 
 class Timeline {
   init(svgEl, timeRange, anomalies) {
@@ -28,9 +31,10 @@ class Timeline {
     this._cacheY = d3.scaleLinear().domain([0, 1]).range([this._ih - 2, 2]);
 
     const svg = d3.select(svgEl).attr('width', W).attr('height', H);
-    svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#161b22');
+    svg.append('rect').attr('width', W).attr('height', H).attr('fill', TP.gray.dark4);
 
     const g = svg.append('g').attr('transform', `translate(${ml},${mt})`);
+    const MONO = "'Source Code Pro',ui-monospace,Menlo,monospace";
 
     // Axis
     g.append('g').attr('class','tl-axis')
@@ -40,25 +44,25 @@ class Timeline {
           .tickFormat(d => d3.timeFormat('%H:%M')(d))
       )
       .call(ax => ax.select('.domain').remove())
-      .call(ax => ax.selectAll('.tick line').attr('stroke','#21262d'))
-      .call(ax => ax.selectAll('.tick text').attr('fill','#6b7280').attr('font-size',9).attr('font-family','ui-monospace,monospace'));
+      .call(ax => ax.selectAll('.tick line').attr('stroke',TP.gray.dark3))
+      .call(ax => ax.selectAll('.tick text').attr('fill',TP.gray.base).attr('font-size',9).attr('font-family',MONO));
 
     // Sparkline legend
-    g.append('rect').attr('x', this._iw - 120).attr('y', 2).attr('width', 10).attr('height', 3).attr('fill', '#3b82f6').attr('opacity', 0.7);
-    g.append('text').attr('x', this._iw - 107).attr('y', 6).attr('fill','#6b7280').attr('font-size',9).attr('font-family','ui-monospace,monospace').text('ops/s');
-    g.append('rect').attr('x', this._iw - 70).attr('y', 2).attr('width', 10).attr('height', 3).attr('fill', '#f97316').attr('opacity', 0.7);
-    g.append('text').attr('x', this._iw - 57).attr('y', 6).attr('fill','#6b7280').attr('font-size',9).attr('font-family','ui-monospace,monospace').text('cache%');
+    g.append('rect').attr('x', this._iw - 120).attr('y', 2).attr('width', 10).attr('height', 3).attr('fill', OPS_COLOR).attr('opacity', 0.8);
+    g.append('text').attr('x', this._iw - 107).attr('y', 6).attr('fill',TP.gray.base).attr('font-size',9).attr('font-family',MONO).text('ops/s');
+    g.append('rect').attr('x', this._iw - 70).attr('y', 2).attr('width', 10).attr('height', 3).attr('fill', CACHE_COLOR).attr('opacity', 0.8);
+    g.append('text').attr('x', this._iw - 57).attr('y', 6).attr('fill',TP.gray.base).attr('font-size',9).attr('font-family',MONO).text('cache%');
 
     // Sparkline paths
-    this._opsPath   = g.append('path').attr('class','sparkline').attr('stroke','#3b82f6').attr('opacity',0.7);
-    this._cachePath = g.append('path').attr('class','sparkline').attr('stroke','f97316').attr('stroke','#f97316').attr('opacity',0.7);
+    this._opsPath   = g.append('path').attr('class','sparkline').attr('stroke',OPS_COLOR).attr('opacity',0.85);
+    this._cachePath = g.append('path').attr('class','sparkline').attr('stroke',CACHE_COLOR).attr('opacity',0.85);
 
     // Anomaly markers
     const mg = g.append('g');
     for (const ev of this._anomalies) {
       const x = this._xScale(new Date(ev.t));
       if (x < 0 || x > this._iw) continue;
-      const color = SEV_COLOR[ev.severity] || '#8b949e';
+      const color = SEV_COLOR[ev.severity] || TP.gray.base;
       const mg2 = mg.append('g').attr('class','anomaly-marker')
         .attr('transform', `translate(${x},${this._ih})`);
       mg2.append('path')

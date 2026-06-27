@@ -64,21 +64,22 @@ function polylineEdge(points) {
 function buildLanes() {
   const dBot = pt('diskIO', 'b'), cBot = pt('wtCache', 'b');
   const midY = Math.max(dBot[1], cBot[1]) + 40;
+  const F = window.LG.flow;
 
   return [
-    { color: '#3b82f6', signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
+    { color: F.ops, signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
       edge: bezierEdge(pt('clients','r'), pt('connections','l'), 55) },
-    { color: '#3b82f6', signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
+    { color: F.ops, signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
       edge: bezierEdge(pt('connections','r'), pt('execControl','l'), 55) },
-    { color: '#3b82f6', signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
+    { color: F.ops, signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
       edge: bezierEdge(pt('execControl','r'), pt('operations','l'), 55) },
-    { color: '#3b82f6', signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
+    { color: F.ops, signal: 'total_ops_rate',    maxVal: 10000, maxRate: 12,
       edge: bezierEdge(pt('operations','r'), pt('wtCache','l'), 90) },
-    { color: '#f97316', signal: 'app_eviction_rate', maxVal: 1000,  maxRate: 8,
+    { color: F.evict, signal: 'app_eviction_rate', maxVal: 1000,  maxRate: 8,
       edge: bezierEdge(pt('wtCache','r'), pt('diskIO','l'), 70) },
-    { color: '#22c55e', signal: 'disk_read_mbps',    maxVal: 500,   maxRate: 6,
+    { color: F.read, signal: 'disk_read_mbps',    maxVal: 500,   maxRate: 6,
       edge: polylineEdge([dBot, [dBot[0], midY], [cBot[0], midY], cBot]) },
-    { color: '#a855f7', signal: 'insert_rate',       maxVal: 5000,  maxRate: 5,
+    { color: F.repl, signal: 'insert_rate',       maxVal: 5000,  maxRate: 5,
       edge: { type: 'bezier',
         p0: pt('operations','t'),
         p1: [pt('operations','t')[0], pt('operations','t')[1] - 70],

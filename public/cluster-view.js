@@ -2,16 +2,14 @@
 
 (function() {
 
-const ROLE_BADGE = {
-  mongos:     { txt: 'MONGOS',  bg: '#1f6feb' },
-  shardsvr:   { txt: 'SHARD',   bg: '#7c3aed' },
-  configsvr:  { txt: 'CONFIG',  bg: '#6b7280' },
-  replset:    { txt: 'REPLSET', bg: '#0d9488' },
-  standalone: { txt: 'MONGOD',  bg: '#6b7280' },
+const ROLE_BADGE = window.LG.role;
+const HCOLOR = {
+  GREEN:  window.LG.health.GREEN.border,
+  YELLOW: window.LG.health.YELLOW.border,
+  RED:    window.LG.health.RED.border,
 };
-
-const HCOLOR = { GREEN: '#22c55e', YELLOW: '#eab308', RED: '#ef4444' };
-const SHARD_COLORS = ['#58a6ff', '#a855f7', '#f97316', '#22c55e', '#e879f9', '#facc15'];
+const SHARD_COLORS = window.LG.series;
+const LGP = window.LG.palette;
 
 function fmt(n) {
   if (n == null || isNaN(n)) return '–';
@@ -81,7 +79,7 @@ class ClusterView {
       card.className = 'host-card';
       card.innerHTML = `
         <div class="host-card-head">
-          <span class="role-badge" style="background:${badge.bg}">${badge.txt}</span>
+          <span class="role-badge" style="background:${badge.bg};color:${badge.fg}">${badge.txt}</span>
           <span class="host-label">${h.label}</span>
           <span class="host-expand">⤢</span>
         </div>
@@ -172,7 +170,7 @@ class ClusterView {
         g.val.textContent = g.spec.fmt(s);
         const pct = Math.max(0, Math.min(1, raw / g.spec.max));
         g.fill.style.width = (pct * 100) + '%';
-        g.fill.style.background = pct > 0.9 ? '#ef4444' : pct > 0.7 ? '#eab308' : '#3b82f6';
+        g.fill.style.background = pct > 0.9 ? LGP.red.light1 : pct > 0.7 ? LGP.yellow.base : LGP.blue.light1;
       }
     }
 

@@ -2,8 +2,11 @@
 
 (function() {
 
-const HBG  = { GREEN: '#0d2818', YELLOW: '#2a1a00', RED: '#2a0a0a' };
-const HBDR = { GREEN: '#22c55e', YELLOW: '#eab308', RED: '#ef4444' };
+// LeafyGreen health tokens (border + dimmed surface tint per state)
+const H = window.LG.health;
+const P = window.LG.palette;
+const HBG  = { GREEN: H.GREEN.bg, YELLOW: H.YELLOW.bg, RED: H.RED.bg };
+const HBDR = { GREEN: H.GREEN.border, YELLOW: H.YELLOW.border, RED: H.RED.border };
 
 function fmt(n, digits = 0) {
   if (n == null || isNaN(n)) return '–';
@@ -136,31 +139,32 @@ function buildEdges() {
     edges.push({ id, d: ctor ? ctor(x1,y1,x2,y2) : bezier(x1,y1,x2,y2), color, cls, signal, maxVal });
   };
 
-  add('e-cli-conn',  'clients','r',  'connections','l', '#3b82f6','edge-flow','total_ops_rate',10000);
-  add('e-conn-exec', 'connections','r','execControl','l','#3b82f6','edge-flow','total_ops_rate',10000);
-  add('e-exec-ops',  'execControl','r','operations','l', '#3b82f6','edge-flow','total_ops_rate',10000);
-  add('e-ops-cache', 'operations','r','wtCache','l',     '#3b82f6','edge-flow','total_ops_rate',10000,
+  const F = window.LG.flow;
+  add('e-cli-conn',  'clients','r',  'connections','l', F.ops,'edge-flow','total_ops_rate',10000);
+  add('e-conn-exec', 'connections','r','execControl','l',F.ops,'edge-flow','total_ops_rate',10000);
+  add('e-exec-ops',  'execControl','r','operations','l', F.ops,'edge-flow','total_ops_rate',10000);
+  add('e-ops-cache', 'operations','r','wtCache','l',     F.ops,'edge-flow','total_ops_rate',10000,
     (x1,y1,x2,y2) => bezier(x1,y1,x2,y2,90));
-  add('e-cache-disk','wtCache','r',  'diskIO','l',       '#f97316','edge-flow','app_eviction_rate',1000,
+  add('e-cache-disk','wtCache','r',  'diskIO','l',       F.evict,'edge-flow','app_eviction_rate',1000,
     (x1,y1,x2,y2) => bezier(x1,y1,x2,y2,70));
 
   // Disk → Cache (read path, below both nodes)
   {
     const [x1,y1] = pt('diskIO','b'), [x2,y2] = pt('wtCache','b');
     const my = Math.max(y1,y2) + 40;
-    edges.push({ id:'e-disk-cache', d:`M${x1},${y1} L${x1},${my} L${x2},${my} L${x2},${y2}`, color:'#22c55e', cls:'edge-back', signal:'disk_read_mbps', maxVal:500 });
+    edges.push({ id:'e-disk-cache', d:`M${x1},${y1} L${x1},${my} L${x2},${my} L${x2},${y2}`, color:F.read, cls:'edge-back', signal:'disk_read_mbps', maxVal:500 });
   }
 
   // Operations → Replication
   {
     const [x1,y1] = pt('operations','t'), [x2,y2] = pt('replication','r');
-    edges.push({ id:'e-ops-repl', d:`M${x1},${y1} C${x1},${y1-70} ${x2+70},${y2} ${x2},${y2}`, color:'#a855f7', cls:'edge-info', signal:'insert_rate', maxVal:5000 });
+    edges.push({ id:'e-ops-repl', d:`M${x1},${y1} C${x1},${y1-70} ${x2+70},${y2} ${x2},${y2}`, color:F.repl, cls:'edge-info', signal:'insert_rate', maxVal:5000 });
   }
 
   // ExecControl → CPU
   {
     const [x1,y1] = pt('execControl','t'), [x2,y2] = pt('cpu','b');
-    edges.push({ id:'e-exec-cpu', d:`M${x1},${y1} L${x2},${y2}`, color:'#6b7280', cls:'edge-info', signal:'cpu_iowait_pct', maxVal:1 });
+    edges.push({ id:'e-exec-cpu', d:`M${x1},${y1} L${x2},${y2}`, color:F.info, cls:'edge-info', signal:'cpu_iowait_pct', maxVal:1 });
   }
 
   return edges;
@@ -171,7 +175,7 @@ class Diagram {
     this._edges = buildEdges();
     const svg = d3.select(svgEl);
 
-    svg.append('rect').attr('width',1200).attr('height',620).attr('fill','#0d1117');
+    svg.append('rect').attr('width',1200).attr('height',620).attr('fill',P.black);
 
     // Edges
     const eg = svg.append('g');
@@ -195,25 +199,25 @@ class Diagram {
 
       g.append('text').attr('class','node-label')
         .attr('x', node.x+7).attr('y', node.y+13)
-        .attr('fill','#8b949e').attr('font-size',10).attr('font-weight',700)
-        .attr('letter-spacing','0.06em').attr('font-family','ui-monospace,monospace')
+        .attr('fill',P.gray.base).attr('font-size',10).attr('font-weight',700)
+        .attr('letter-spacing','0.07em').attr('font-family',"'Euclid Circular A','Helvetica Neue',sans-serif")
         .text(node.label);
 
       const barY = node.y + node.h - 7;
-      g.append('rect').attr('x',node.x+4).attr('y',barY-3).attr('width',node.w-8).attr('height',4).attr('rx',2).attr('fill','#21262d');
+      g.append('rect').attr('x',node.x+4).attr('y',barY-3).attr('width',node.w-8).attr('height',4).attr('rx',2).attr('fill',P.gray.dark3);
       const bar = g.append('rect').attr('x',node.x+4).attr('y',barY-3).attr('width',0).attr('height',4).attr('rx',2).attr('fill',HBDR.GREEN);
 
       const lineEls = node.lines.map((ln, i) =>
         g.append('text').attr('x',node.x+7).attr('y',node.y+26+i*16)
-         .attr('class','node-value').attr('fill','#e6edf3')
-         .attr('font-size',11).attr('font-family','ui-monospace,monospace').text('–')
+         .attr('class','node-value').attr('fill',P.gray.light2)
+         .attr('font-size',11).attr('font-family',"'Source Code Pro',ui-monospace,Menlo,monospace").text('–')
       );
 
       this._nodes[node.id] = { g, bg, bar, barMax: node.w-8, lineEls };
     }
 
     svg.append('text').attr('x',600).attr('y',612).attr('text-anchor','middle')
-      .attr('fill','#30363d').attr('font-size',10).attr('font-family','ui-monospace,monospace')
+      .attr('fill',P.gray.dark2).attr('font-size',10).attr('font-family',"'Euclid Circular A','Helvetica Neue',sans-serif")
       .text('drag timeline to seek  •  click anomaly markers to jump');
   }
 
@@ -233,7 +237,7 @@ class Diagram {
         const txt = ln.t(s) || '';
         el.lineEls[i].text(txt)
           .attr('class', ln.c?.(s) ? 'node-value crit' : ln.w?.(s) ? 'node-value warn' : 'node-value')
-          .attr('fill', ln.c?.(s) ? '#ef4444' : ln.w?.(s) ? '#eab308' : '#e6edf3');
+          .attr('fill', ln.c?.(s) ? P.red.light1 : ln.w?.(s) ? P.yellow.base : P.gray.light2);
       });
     }
 
